@@ -15,6 +15,13 @@ Created on Tue Aug 29 12:32:19 2017
 # import topo_metric
 # import apls_tools
 # import graphTools
+import sp_metric
+import topo_metric
+import wkt_to_G
+import graphTools
+import osmnx_funcs
+import apls_plots
+import apls_utils
 import networkx as nx
 import scipy.spatial
 import scipy.stats
@@ -42,13 +49,6 @@ path_apls = os.path.dirname(path_apls_src)
 # print("path_apls:", path_apls)
 # add path and import graphTools
 sys.path.append(path_apls_src)
-import apls_utils
-import apls_plots
-import osmnx_funcs
-import graphTools
-import wkt_to_G
-import topo_metric
-import sp_metric
 
 # if in docker, the line below may be necessary
 # matplotlib.use('agg')
@@ -95,7 +95,7 @@ def add_travel_time(G_, speed_key='inferred_speed_mps', length_key='length',
             # print("speed:", speed)
         else:
             print("speed_key not found:", speed_key)
-            return
+            return G_
 #            data['inferred_speed'] = default_speed
 #            data[speed_key] = default_speed
 #            speed = default_speed
@@ -398,8 +398,8 @@ def insert_point_into_G(G_, point, node_id=100000, max_distance_meters=5,
     #    return
 
     best_edge, min_dist, best_geom = get_closest_edge_from_G(
-            G_, point, nearby_nodes_set=nearby_nodes_set,
-            verbose=super_verbose)
+        G_, point, nearby_nodes_set=nearby_nodes_set,
+        verbose=super_verbose)
     [u, v, key] = best_edge
     G_node_set = set(G_.nodes())
 
@@ -439,7 +439,7 @@ def insert_point_into_G(G_, point, node_id=100000, max_distance_meters=5,
 
         #################
         # create new node
-        
+
         try:
             # first get zone, then convert to latlon
             _, _, zone_num, zone_letter = utm.from_latlon(G_.nodes[u]['lat'],
@@ -702,11 +702,11 @@ def insert_control_points(G_, control_points, max_distance_meters=10,
         return Gout, new_xs, new_ys
 
     for i, [node_id, x, y] in enumerate(control_points):
-        
+
         if math.isinf(x) or math.isinf(y):
             print("Infinity in coords!:", x, y)
             return
-        
+
         # if verbose:
         if (i % 20) == 0:
             print(i, "/", len(control_points),
@@ -717,10 +717,10 @@ def insert_control_points(G_, control_points, max_distance_meters=10,
         if len(G_.nodes()) > n_nodes_for_kd:
             # get closest nodes
             node_names, dists_m_refine = apls_utils.nodes_near_point(
-                    x, y, kdtree, kd_idx_dic, x_coord=x_coord, y_coord=y_coord,
-                    # radius_m=radius_m,
-                    n_neighbors=n_neighbors,
-                    verbose=False)
+                x, y, kdtree, kd_idx_dic, x_coord=x_coord, y_coord=y_coord,
+                # radius_m=radius_m,
+                n_neighbors=n_neighbors,
+                verbose=False)
             nearby_nodes_set = set(node_names)
         else:
             nearby_nodes_set = set([])
@@ -988,15 +988,15 @@ def _create_gt_graph(geoJson, im_test_file, network_type='all_private',
         print("Time to run create_graphGeoJson():", t1 - t0, "seconds")
 
     # refine graph
-    G_gt = _refine_gt_graph(G0gt_init, im_test_file, 
-                     subgraph_filter_weight=subgraph_filter_weight,
-                     min_subgraph_length=min_subgraph_length,
-                     travel_time_key=travel_time_key,
-                     speed_key=speed_key,
-                     use_pix_coords=use_pix_coords,
-                     verbose=verbose,
-                     super_verbose=super_verbose)
-    
+    G_gt = _refine_gt_graph(G0gt_init, im_test_file,
+                            subgraph_filter_weight=subgraph_filter_weight,
+                            min_subgraph_length=min_subgraph_length,
+                            travel_time_key=travel_time_key,
+                            speed_key=speed_key,
+                            use_pix_coords=use_pix_coords,
+                            verbose=verbose,
+                            super_verbose=super_verbose)
+
 #    # save latlon geometry (osmnx overwrites the 'geometry' tag)
 #    # also compute pixel geom
 #    for i, (u, v, key, data) in enumerate(G0gt_init.edges(keys=True, data=True)):
@@ -1010,7 +1010,7 @@ def _create_gt_graph(geoJson, im_test_file, network_type='all_private',
 #        else:
 #            line_geom = data['geometry']
 #        data['geometry_latlon'] = line_geom.wkt
-#        
+#
 #        # print ("im_test_file:", im_test_file)
 #        if os.path.exists(im_test_file):
 #            # get pixel geom (do this after simplify so that we don't have to
@@ -1018,7 +1018,7 @@ def _create_gt_graph(geoJson, im_test_file, network_type='all_private',
 #            geom_pix = apls_utils.geomGeo2geomPixel(line_geom,
 #                                                    input_raster=im_test_file)
 #            data['geometry_pix'] = geom_pix.wkt
-#            data['length_pix'] = geom_pix.length        
+#            data['length_pix'] = geom_pix.length
 #
 #    # print coords
 #    # n = G0gt_init.nodes()[0]
@@ -1146,7 +1146,7 @@ def _create_gt_graph(geoJson, im_test_file, network_type='all_private',
 
 
 ###############################################################################
-def _refine_gt_graph(G0gt_init, im_test_file, 
+def _refine_gt_graph(G0gt_init, im_test_file,
                      subgraph_filter_weight='length',
                      min_subgraph_length=5,
                      travel_time_key='travel_time_s',
@@ -1155,7 +1155,7 @@ def _refine_gt_graph(G0gt_init, im_test_file,
                      verbose=False,
                      super_verbose=False):
     """refine ground truth graph"""
-    
+
     t1 = time.time()
     # save latlon geometry (osmnx overwrites the 'geometry' tag)
     # also compute pixel geom
@@ -1211,7 +1211,7 @@ def _refine_gt_graph(G0gt_init, im_test_file,
     except:
         print("Cannot simplify graph, using original")
         G2gt_init0 = G0gt
-        
+
     # make sure all edges have a geometry assigned to them
     G2gt_init1 = create_edge_linestrings(
         G2gt_init0.copy(), remove_redundant=True)
@@ -1381,7 +1381,7 @@ def make_graphs(G_gt_, G_p_,
         all_pairs_lengths_gt_native is path length dict corresponding to G_gt_cp
         all_pairs_lengths_prop_native is path length dict corresponding to G_p_cp
         all_pairs_lengths_gt_prime is path length dict corresponding to G_gt_cp_prime
-        all_pairs_lenfgths_prop_prime is path length dict corresponding to G_p_cp_prime 
+        all_pairs_lenfgths_prop_prime is path length dict corresponding to G_p_cp_prime
     """
 
     t0 = time.time()
@@ -1508,7 +1508,7 @@ def make_graphs(G_gt_, G_p_,
     # get paths
     all_pairs_lengths_prop_native = dict(
         nx.shortest_path_length(G_p_cp, weight=weight))
-        # nx.all_pairs_dijkstra_path_length(G_p_cp, weight=weight))
+    # nx.all_pairs_dijkstra_path_length(G_p_cp, weight=weight))
 
     ###############
     # insert gt control points into proposal
@@ -1551,10 +1551,10 @@ def make_graphs(G_gt_, G_p_,
     # get paths
     all_pairs_lengths_gt_prime = dict(
         nx.shortest_path_length(G_gt_cp_prime, weight=weight))
-        # nx.all_pairs_dijkstra_path_length(G_gt_cp_prime, weight=weight))
+    # nx.all_pairs_dijkstra_path_length(G_gt_cp_prime, weight=weight))
     all_pairs_lengths_prop_prime = dict(
         nx.shortest_path_length(G_p_cp_prime, weight=weight))
-        # nx.all_pairs_dijkstra_path_length(G_p_cp_prime, weight=weight))
+    # nx.all_pairs_dijkstra_path_length(G_p_cp_prime, weight=weight))
 
     tf = time.time()
     print("Time to run make_graphs in apls.py:", tf - t0, "seconds")
@@ -1626,9 +1626,9 @@ def make_graphs_yuge(G_gt, G_p,
         all_pairs_lengths_gt_native is path length dict corresponding to G_gt_cp
         all_pairs_lengths_prop_native is path length dict corresponding to G_p_cp
         all_pairs_lengths_gt_prime is path length dict corresponding to G_gt_cp_prime
-        all_pairs_lenfgths_prop_prime is path length dict corresponding to G_p_cp_prime 
+        all_pairs_lenfgths_prop_prime is path length dict corresponding to G_p_cp_prime
     """
-    
+
     t0 = time.time()
     print("Executing make_graphs_yuge()...")
 
@@ -1678,7 +1678,7 @@ def make_graphs_yuge(G_gt, G_p,
         except:
             try:
                 print("edge:", edge_tmp, "G_gt random edge props:",
-                  G_gt.edges[edge_tmp[0], edge_tmp[1], 0])
+                      G_gt.edges[edge_tmp[0], edge_tmp[1], 0])
             except:
                 pass
         # prop node and edge props
@@ -1692,7 +1692,7 @@ def make_graphs_yuge(G_gt, G_p,
         except:
             try:
                 print("edge:", edge_tmp, "G_p random edge props:",
-                  G_p.edges[edge_tmp[0], edge_tmp[1], 0])
+                      G_p.edges[edge_tmp[0], edge_tmp[1], 0])
             except:
                 pass
 
@@ -1701,9 +1701,9 @@ def make_graphs_yuge(G_gt, G_p,
     rand_nodes_gt = random.sample(G_gt_cp.nodes(), sample_size)
     rand_nodes_gt_set = set(rand_nodes_gt)
     control_points_gt = []
-    for itmp,n in enumerate(rand_nodes_gt):
+    for itmp, n in enumerate(rand_nodes_gt):
         if verbose and (i % 20) == 0:
-            print ("control_point", itmp, ":", n, ":", G_gt_cp.nodes[n])
+            print("control_point", itmp, ":", n, ":", G_gt_cp.nodes[n])
         u_x, u_y = G_gt_cp.nodes[n]['x'], G_gt_cp.nodes[n]['y']
         control_points_gt.append([n, u_x, u_y])
     if verbose:
@@ -1734,8 +1734,8 @@ def make_graphs_yuge(G_gt, G_p,
                sample_size, "nodes:", time.time() - tt, "seconds"))
 
     # get individual routes (super slow!)
-    #t0 = time.time()
-    #all_pairs_lengths_gt_native = {}
+    # t0 = time.time()
+    # all_pairs_lengths_gt_native = {}
     # for source in rand_nodes_gt:
     #    print ("source:", source)
     #    source_dic = {}
@@ -1744,16 +1744,16 @@ def make_graphs_yuge(G_gt, G_p,
     #        p = nx.dijkstra_path_length(G_gt_init, source, target, weight=weight)
     #        source_dic[target] = p
     #    all_pairs_lengths_gt_native[source] = source_dic
-    #print ("Time to compute all source routes:", time.time() - t0, "seconds")
-    ## ('Time to compute all source routes:', 9.418055057525635, 'seconds')
+    # print ("Time to compute all source routes:", time.time() - t0, "seconds")
+    # ('Time to compute all source routes:', 9.418055057525635, 'seconds')
 
-    #all_pairs_lengths_gt_native = nx.all_pairs_dijkstra_path_length(G_gt_cp, weight=weight)
+    # all_pairs_lengths_gt_native = nx.all_pairs_dijkstra_path_length(G_gt_cp, weight=weight)
     ###############
 
     ###############
     # get proposal graph with native midpoints
     G_p_cp = G_p.to_undirected()
-    #G_p_cp = create_edge_linestrings(G_p.to_undirected())
+    # G_p_cp = create_edge_linestrings(G_p.to_undirected())
     if verbose:
         print("len G_p_cp.nodes():", len(G_p_cp.nodes()))
         print("G_p_cp.edges():", len(G_p_cp.edges()))
@@ -1870,8 +1870,8 @@ def make_graphs_yuge(G_gt, G_p,
         print(("Time to compute all source routes for",
                max_nodes, "nodes:", time.time() - tt, "seconds"))
 
-    #all_pairs_lengths_gt_prime = nx.all_pairs_dijkstra_path_length(G_gt_cp_prime, weight=weight)
-    #all_pairs_lengths_prop_prime = nx.all_pairs_dijkstra_path_length(G_p_cp_prime, weight=weight)
+    # all_pairs_lengths_gt_prime = nx.all_pairs_dijkstra_path_length(G_gt_cp_prime, weight=weight)
+    # all_pairs_lengths_prop_prime = nx.all_pairs_dijkstra_path_length(G_p_cp_prime, weight=weight)
 
     ###############
     tf = time.time()
@@ -2339,7 +2339,7 @@ def gather_files(test_method, truth_dir, prop_dir,
             print(os.path.exists(gt_file))
             prop_file = os.path.join(prop_dir, outroot + '.gpickle')
             if not os.path.exists(prop_file):
-                prop_file = os.path.join(prop_dir, 'fold0_RGB-PanSharpen_' \
+                prop_file = os.path.join(prop_dir, 'fold0_RGB-PanSharpen_'
                                          + outroot + '.gpickle')
             im_file = os.path.join(im_dir, outroot + '.tif')
             # im_file = os.path.join(im_dir, im_prefix + outroot + '.tif')
@@ -2412,27 +2412,28 @@ def gather_files(test_method, truth_dir, prop_dir,
             if f.startswith('spacenetroads'):
                 outroot = f.split('spacenetroads_')[-1].split('.')[0]
                 prop_file = os.path.join(
-                        prop_dir, im_prefix + outroot + '.gpickle')
+                    prop_dir, im_prefix + outroot + '.gpickle')
                 im_file = os.path.join(im_dir, im_prefix + outroot + '.tif')
             elif f.startswith('osmroads'):
                 outroot = f.split('osmroads_')[-1].split('.')[0]
                 prop_file = os.path.join(
-                        prop_dir, im_prefix + outroot + '.gpickle')
+                    prop_dir, im_prefix + outroot + '.gpickle')
                 im_file = os.path.join(im_dir, im_prefix + outroot + '.tif')
             elif f.startswith('SN'):
                 outroot = f.split('.')[0].replace('geojson_roads_speed_', '')
-                prop_file = os.path.join(prop_dir, f.replace('geojson_roads_speed', 'PS-RGB')).replace('.geojson', '.gpickle')
+                prop_file = os.path.join(prop_dir, f.replace(
+                    'geojson_roads_speed', 'PS-RGB')).replace('.geojson', '.gpickle')
                 im_file = os.path.join(im_dir,
                                        f.split('.')[0].replace('geojson_roads_speed', 'PS-RGB') + '.tif')
             else:
                 print("Naming convention for geojsons and pkls unknown")
                 return
-            
+
             # if verbose:
             print("\n", i, "outroot:", outroot)
             gt_file = os.path.join(truth_dir, f)
             # im_file = os.path.join(im_dir, im_prefix + outroot + '.tif')
-            #prop_file = os.path.join(
+            # prop_file = os.path.join(
             #    prop_dir, im_prefix + outroot + '.gpickle')
             if not os.path.exists(prop_file):
                 print("prop file DNE, skipping:", prop_file)
@@ -2463,11 +2464,11 @@ def gather_files(test_method, truth_dir, prop_dir,
                 edge_tmp = list(G_gt_init.edges())[-1]
                 # G.edge[edge_tmp[0]][edge_tmp[1]])
                 try:
-                    props =  G_gt_init.edges[edge_tmp[0], edge_tmp[1], 0]
+                    props = G_gt_init.edges[edge_tmp[0], edge_tmp[1], 0]
                 except:
-                    props =  G_gt_init.edges[edge_tmp[0], edge_tmp[1], "0"]
+                    props = G_gt_init.edges[edge_tmp[0], edge_tmp[1], "0"]
                 print("gt random edge props for edge:", edge_tmp, " = ",
-                     props)
+                      props)
 
             # # # optional: save to pickle
             # outpickle = 'tmp.gpickle'
@@ -2554,7 +2555,7 @@ def gather_files(test_method, truth_dir, prop_dir,
             # gt_raw_list.append(G_gt_raw)
             gp_list.append(G_p_init)
             root_list.append(outroot)
-            
+
     ###################
     # use ground truth spacenet geojsons, and submission wkt files
     elif test_method == 'gt_json_prop_wkt':
@@ -2612,7 +2613,7 @@ def gather_files(test_method, truth_dir, prop_dir,
                 # G.edge[edge_tmp[0]][edge_tmp[1]])
                 print("random edge props for edge:", edge_tmp, " = ",
                       G_gt_init.edges[edge_tmp[0], edge_tmp[1], 0])
-                
+
             #########
             print("Retrieve proposal graph...")
             # proposal
@@ -2620,23 +2621,25 @@ def gather_files(test_method, truth_dir, prop_dir,
             # read in wkt list
             df_wkt = pd.read_csv(prop_wkt_file)
             # columns=['ImageId', 'WKT_Pix'])
-            
+
             # original version
             # image_id = outroot
-            
+
             # SN5 version
             AOI_root = 'AOI' + f.split('AOI')[-1]
-            image_id = AOI_root.split('.')[0].replace('geojson_roads_speed_', '')
+            image_id = AOI_root.split('.')[0].replace(
+                'geojson_roads_speed_', '')
             print("image_id", image_id)
 
             # filter
             df_filt = df_wkt['WKT_Pix'][df_wkt['ImageId'] == image_id]
             wkt_list = df_filt.values
-            weight_list = df_wkt[wkt_weight_key][df_wkt['ImageId'] == image_id].values
+            weight_list = df_wkt[wkt_weight_key][df_wkt['ImageId']
+                                                 == image_id].values
 
             # print a few values
             if verbose:
-                print (i, "/", len(name_list), "num linestrings:", len(wkt_list))
+                print(i, "/", len(name_list), "num linestrings:", len(wkt_list))
                 print("image_file:", im_file, "wkt_list[:2]", wkt_list[:2])
                 print("weight_list[:2]", weight_list[:2])
 
@@ -2660,8 +2663,8 @@ def gather_files(test_method, truth_dir, prop_dir,
             # if we're not weighting based on the wkt file, use generic
             else:
                 G_p_init = add_travel_time(G_p_init, speed_key=speed_key,
-                                       travel_time_key=travel_time_key,
-                                       default_speed=default_speed)
+                                           travel_time_key=travel_time_key,
+                                           default_speed=default_speed)
             if verbose:
                 print("Time to create graph:", t2-t1, "seconds")
                 # print a node
@@ -2693,8 +2696,9 @@ def gather_files(test_method, truth_dir, prop_dir,
                 break
 
             im_file = os.path.join(im_dir, f)
-            outroot = 'AOI' + f.split('.')[0].split('AOI')[-1].replace('PS-RGB_', '')
-            
+            outroot = 'AOI' + \
+                f.split('.')[0].split('AOI')[-1].replace('PS-RGB_', '')
+
             # gt file
             df_wkt_gt = pd.read_csv(gt_wkt_file)
             image_id = outroot
@@ -2706,15 +2710,16 @@ def gather_files(test_method, truth_dir, prop_dir,
             # filter
             df_filt = df_wkt_gt['WKT_Pix'][df_wkt_gt['ImageId'] == image_id]
             wkt_list = df_filt.values
-            weight_list = df_wkt_gt[wkt_weight_key][df_wkt_gt['ImageId'] == image_id].values
+            weight_list = df_wkt_gt[wkt_weight_key][df_wkt_gt['ImageId']
+                                                    == image_id].values
 
             # print a few values
             if verbose:
-                print("\n", i, "/", len(im_list), "num linestrings:", len(wkt_list))
+                print("\n", i, "/", len(im_list),
+                      "num linestrings:", len(wkt_list))
                 print("image_file:", im_file, "wkt_list[:2]", wkt_list[:2])
                 print("weight_list[:3]", weight_list[:3])
                 print("image_id:", image_id)
-
 
             if (len(wkt_list) == 0) or (wkt_list[0] == 'LINESTRING EMPTY'):
                 continue
@@ -2729,14 +2734,14 @@ def gather_files(test_method, truth_dir, prop_dir,
                 edge_iter=edge_iter,
                 verbose=super_verbose)
             # refine G_gt?
-            G_gt_init = _refine_gt_graph(G_gt_init0, im_file, 
-                                    subgraph_filter_weight=gt_subgraph_filter_weight,
-                                    min_subgraph_length=gt_min_subgraph_length,
-                                    travel_time_key=travel_time_key,
-                                    speed_key=speed_key,
-                                    use_pix_coords=use_pix_coords,
-                                    verbose=verbose,
-                                    super_verbose=super_verbose)
+            G_gt_init = _refine_gt_graph(G_gt_init0, im_file,
+                                         subgraph_filter_weight=gt_subgraph_filter_weight,
+                                         min_subgraph_length=gt_min_subgraph_length,
+                                         travel_time_key=travel_time_key,
+                                         speed_key=speed_key,
+                                         use_pix_coords=use_pix_coords,
+                                         verbose=verbose,
+                                         super_verbose=super_verbose)
 
             # add travel time
             if 'time' in wkt_weight_key:
@@ -2745,8 +2750,8 @@ def gather_files(test_method, truth_dir, prop_dir,
             # if we're not weighting based on the wkt file, use generic
             else:
                 G_gt_init = add_travel_time(G_gt_init, speed_key=speed_key,
-                                       travel_time_key=travel_time_key,
-                                       default_speed=default_speed)
+                                            travel_time_key=travel_time_key,
+                                            default_speed=default_speed)
 
             t2 = time.time()
 #            # add travel time
@@ -2767,7 +2772,6 @@ def gather_files(test_method, truth_dir, prop_dir,
                 print("random edge props for edge:", edge_tmp, " = ",
                       G_gt_init.edges[edge_tmp[0], edge_tmp[1], 0])
 
-
             #########
             print("Retrieve proposal graph...")
             # proposal
@@ -2787,7 +2791,8 @@ def gather_files(test_method, truth_dir, prop_dir,
             # filter
             df_filt = df_wkt['WKT_Pix'][df_wkt['ImageId'] == image_id]
             wkt_list = df_filt.values
-            weight_list = df_wkt[wkt_weight_key][df_wkt['ImageId'] == image_id].values
+            weight_list = df_wkt[wkt_weight_key][df_wkt['ImageId']
+                                                 == image_id].values
 
             # print a few values
             if verbose:
@@ -2815,8 +2820,8 @@ def gather_files(test_method, truth_dir, prop_dir,
             # if we're not weighting based on the wkt file, use generic
             else:
                 G_p_init = add_travel_time(G_p_init, speed_key=speed_key,
-                                       travel_time_key=travel_time_key,
-                                       default_speed=default_speed)
+                                           travel_time_key=travel_time_key,
+                                           default_speed=default_speed)
             if verbose:
                 print("Time to create graph:", t2-t1, "seconds")
                 # print a node
@@ -2946,11 +2951,11 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
     ##################
     # make dirs
     outdir_base = os.path.join(path_apls, 'outputs')
-    print ("Outdir base:", outdir_base)
+    print("Outdir base:", outdir_base)
     outdir_base2 = os.path.join(outdir_base, str(output_name),
                                 'weight=' + str(weight),
                                 test_method)
-    print ("Outdir with weight:", outdir_base2)
+    print("Outdir with weight:", outdir_base2)
     d_list = [outdir_base, outdir_base2]
     for p in d_list:
         if not os.path.exists(p):
@@ -2980,18 +2985,18 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
         print("len(G_p_init.edges():)", len(G_p_init.edges()))
 
 #        ##################
-#        # make dirs
-#        outdir_base = os.path.join(path_apls, 'outputs')
-#        outdir_base2 = os.path.join(
-#            outdir_base, output_name, 'weight=' + weight)
-#        outdir = os.path.join(outdir_base2, outroot)
-#        print("output dir:", outdir)
-#        os.makedirs(outdir, exist_ok=True)
-#        # d_list = [outdir_base, outdir_base2, outdir]
-#        # for p in d_list:
-#        #    #if not os.path.exists(p) and make_plots:
-#        #    if not os.path.exists(p):
-#        #        os.makedirs(p)
+        # make dirs
+        outdir_base = os.path.join(path_apls, 'outputs')
+        outdir_base2 = os.path.join(
+            outdir_base, output_name, 'weight=' + weight)
+        outdir = os.path.join(outdir_base2, outroot)
+        print("output dir:", outdir)
+        os.makedirs(outdir, exist_ok=True)
+        # d_list = [outdir_base, outdir_base2, outdir]
+        # for p in d_list:
+        #    #if not os.path.exists(p) and make_plots:
+        #    if not os.path.exists(p):
+        #        os.makedirs(p)
 #        ##################
 
         # get graphs with midpoints and geometry (if small graph)
@@ -3240,12 +3245,12 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             Gtmp = G_gt_cp.copy()  # G_gt_cp_prime.copy()
             for itmp, (u, v, key, data) in enumerate(Gtmp.edges(keys=True, data=True)):
                 try:
-                    #line = data['geometry']
+                    # line = data['geometry']
                     data.pop('geometry', None)
                 except:
                     data[0].pop('geometry', None)
             fig, ax = osmnx_funcs.plot_graph(Gtmp, show=show_plots, close=False,
-                                    fig_height=fig_height, fig_width=fig_width)
+                                             fig_height=fig_height, fig_width=fig_width)
             ax.set_title(
                 'Ground Truth Graph (cp) without any geometry', size='x-small')
             # plt.tight_layout()
@@ -3303,10 +3308,10 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                 fig_height=fig_height, fig_width=fig_width)
             try:
                 apls_plots._plot_buff(G_gt_init, ax3, buff=max_snap_dist,
-                                 color='yellow', alpha=0.3,
-                                 title='',
-                                 title_fontsize=title_fontsize, outfile='',
-                                 verbose=False)
+                                      color='yellow', alpha=0.3,
+                                      title='',
+                                      title_fontsize=title_fontsize, outfile='',
+                                      verbose=False)
             except:
                 print("Cannot make buffer plot...")
             ax3.set_title('Propoal Graph with Ground Truth Buffer',
@@ -3324,10 +3329,10 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                 fig_height=fig_height, fig_width=fig_width)
             try:
                 apls_plots._plot_buff(G_p_init, ax4, buff=max_snap_dist,
-                                  color='yellow', alpha=0.3,
-                                  title='',
-                                  title_fontsize=title_fontsize, outfile='',
-                                  verbose=False)
+                                      color='yellow', alpha=0.3,
+                                      title='',
+                                      title_fontsize=title_fontsize, outfile='',
+                                      verbose=False)
             except:
                 print("Cannot make buffer plot...")
             ax4.set_title('Ground Graph with Proposal Buffer',
@@ -3343,7 +3348,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             Gtmp = G_p_cp.copy()  # G_gt_cp_prime.copy()
             for itmp, (u, v, key, data) in enumerate(Gtmp.edges(keys=True, data=True)):
                 try:
-                    #line = data['geometry']
+                    # line = data['geometry']
                     data.pop('geometry', None)
                 except:
                     data[0].pop('geometry', None)
@@ -3361,7 +3366,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             Gtmp = G_p_init.copy()  # G_gt_cp_prime.copy()
             for itmp, (u, v, key, data) in enumerate(Gtmp.edges(keys=True, data=True)):
                 try:
-                    #line = data['geometry']
+                    # line = data['geometry']
                     data.pop('geometry', None)
                 except:
                     data[0].pop('geometry', None)
@@ -3378,16 +3383,16 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             # get source and target nodes
 
             # use idxs?
-            #source_idx = np.random.randint(0,len(G_gt_cp.nodes()))
-            #target_idx = np.random.randint(0,len(G_gt_cp.nodes()))
+            # source_idx = np.random.randint(0,len(G_gt_cp.nodes()))
+            # target_idx = np.random.randint(0,len(G_gt_cp.nodes()))
             # specify source and target node, if desired
             # if len(gt_file) == 0:
-            ##    source_idx =  27
-            ##    target_idx =  36
+            # source_idx =  27
+            # target_idx =  36
             # print "source_idx:", source_idx
             # print "target_idx:", target_idx
-            #source = G_gt_cp.nodes()[source_idx]
-            #target = G_gt_cp.nodes()[target_idx]
+            # source = G_gt_cp.nodes()[source_idx]
+            # target = G_gt_cp.nodes()[target_idx]
 
             # get a random source and target that are in both ground truth and prop
             if len(G_gt_cp.nodes()) < 200:
@@ -3416,16 +3421,16 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             # plot a single route
             try:
                 fig, ax = osmnx_funcs.plot_graph_route(G_gt_cp, paths[target],
-                                              route_color='yellow',
-                                              route_alpha=0.8,
-                                              orig_dest_node_alpha=0.3,
-                                              orig_dest_node_size=120,
-                                              route_linewidth=route_linewidth,
-                                              orig_dest_node_color=target_color,
-                                              show=show_plots,
-                                              close=False,
-                                              fig_height=fig_height,
-                                              fig_width=fig_width)
+                                                       route_color='yellow',
+                                                       route_alpha=0.8,
+                                                       orig_dest_node_alpha=0.3,
+                                                       orig_dest_node_size=120,
+                                                       route_linewidth=route_linewidth,
+                                                       orig_dest_node_color=target_color,
+                                                       show=show_plots,
+                                                       close=False,
+                                                       fig_height=fig_height,
+                                                       fig_width=fig_width)
                 plen = np.round(lengths[target], 2)
             except:
                 print("Proposal route not possible")
@@ -3474,7 +3479,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                     close=False,
                     fig_height=fig_height,
                     fig_width=fig_width)
-                #title= "Source-" + source_color + " " + str(source) + " Target: " + str(target)
+                # title= "Source-" + source_color + " " + str(source) + " Target: " + str(target)
                 plen = np.round(lengths_ptmp[target], 2)
             except:
                 print("Proposal route not possible")
@@ -3527,12 +3532,12 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
     tf = time.time()
     print(("Time to compute metric:", tf - t0, "seconds"))
     print(("N input images:", len(root_list)))
-    #df = pd.DataFrame(C_arr[1:], columns=C_arr[0])
-    #df.to_csv(os.path.join(outdir_base2, 'scores.csv'))
-    #print(("len df:", len(df)))
+    # df = pd.DataFrame(C_arr[1:], columns=C_arr[0])
+    # df.to_csv(os.path.join(outdir_base2, 'scores.csv'))
+    # print(("len df:", len(df)))
 
     # Compute mean of C
-    #print ("np.array(C_arr):", np.array(C_arr))
+    # print ("np.array(C_arr):", np.array(C_arr))
     means = np.mean(np.array(C_arr)[1:, 1:].astype(float), axis=0)
     C_arr.append(['means'] + list(means))
     stds = np.std(np.array(C_arr)[1:, 1:].astype(float), axis=0)
@@ -3556,24 +3561,87 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
 
 
 ###############################################################################
-def main():
+def main(test_method, truth_dir, prop_dir, im_dir, im_prefix, gt_wkt_file, prop_wkt_file,
+         max_files, gt_subgraph_filter_weight, gt_min_subgraph_length, prop_subgraph_filter_weight,
+         prop_min_subgraph_length, use_pix_coords, weight, speed_key, travel_time_key, wkt_weight_key,
+         default_speed, output_name, linestring_delta, is_curved_eps, max_snap_dist, max_nodes,
+         n_plots, min_path_length, topo_hole_size, topo_subgraph_radius, topo_interval,
+         sp_length_buffer, allow_renaming):
     '''Explore'''
 
+    # general settings
+    verbose = True
+    super_verbose = False
+
+    # Gather files
+    gt_list, gp_list, root_list, im_loc_list = gather_files(
+        test_method,
+        truth_dir,
+        prop_dir,
+        im_dir=im_dir,
+        im_prefix=im_prefix,
+        gt_wkt_file=gt_wkt_file,
+        prop_wkt_file=prop_wkt_file,
+        max_files=max_files,
+        gt_subgraph_filter_weight=gt_subgraph_filter_weight,
+        gt_min_subgraph_length=gt_min_subgraph_length,
+        prop_subgraph_filter_weight=prop_subgraph_filter_weight,
+        prop_min_subgraph_length=prop_min_subgraph_length,
+        use_pix_coords=use_pix_coords,
+        speed_key=speed_key,
+        travel_time_key=travel_time_key,
+        wkt_weight_key=wkt_weight_key,
+        default_speed=default_speed,
+        verbose=verbose,
+        super_verbose=super_verbose
+    )
+
+    # Compute
+    execute(
+        output_name,
+        gt_list,
+        gp_list,
+        root_list,
+        im_loc_list=im_loc_list,
+        test_method=test_method,
+        weight=weight,
+        speed_key=speed_key,
+        travel_time_key=travel_time_key,
+        max_files=max_files,
+        linestring_delta=linestring_delta,
+        is_curved_eps=is_curved_eps,
+        max_snap_dist=max_snap_dist,
+        max_nodes=max_nodes,
+        n_plots=n_plots,
+        min_path_length=min_path_length,
+        topo_hole_size=topo_hole_size,
+        topo_subgraph_radius=topo_subgraph_radius,
+        topo_interval=topo_interval,
+        sp_length_buffer=sp_length_buffer,
+        use_pix_coords=use_pix_coords,
+        allow_renaming=allow_renaming,
+        verbose=verbose,
+        super_verbose=super_verbose
+    )
+
+
+###############################################################################
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--output_name', default='apls_test0', type=str,
                         help='Output folder name in apls/outputs')
-    parser.add_argument('--test_method', default='gt_pkl_prop_pkl', type=str,
+    parser.add_argument('--test_method', default='gt_pkl_prop_pkl', type=str, required=True,
                         help="Method for creating ground truth and proposal "
                         + "graphs. Options:"
-                        + " gt_pkl_prop_pkl   = ground truth pickle, proposal pickle"
-                        + " gt_json_prop_pkl  = ground truth json, proposal pickle"
+                        + "gt_pkl_prop_pkl   = ground truth pickle, proposal pickle"
+                        + "gt_json_prop_pkl  = ground truth json, proposal pickle"
                         + "gt_json_prop_json = ground truth json, proposal json"
                         + "gt_json_prop_wkt  = ground truth json, proposal csv in wkt format"
                         + "gt_wkt_prop_wkt = ground truth wkt, proposal wkt"
                         )
-    parser.add_argument('--truth_dir', default='', type=str,
+    parser.add_argument('--truth_dir', type=str, required=True,
                         help='Location of ground truth graphs')
-    parser.add_argument('--prop_dir', default='', type=str,
+    parser.add_argument('--prop_dir', type=str, required=True,
                         help='Location of proposal graphs')
     parser.add_argument('--im_dir', default='', type=str,
                         help='Location of images (optional)')
@@ -3620,9 +3688,9 @@ def main():
                         ' (13.41 m/s = 30 mph)')
     parser.add_argument('--n_plots', default=12, type=int,
                         help='Number of plots to make when computing APLS')
-    parser.add_argument('--use_pix_coords', default=1, type=int,
+    parser.add_argument('--use_pix_coords', default=True, type=bool,
                         help='Switch to use pix coords, defaults to 1 (True)')
-    parser.add_argument('--allow_renaming', default=1, type=int,
+    parser.add_argument('--allow_renaming', default=True, type=bool,
                         help='Switch to rename nodes. Defaults to 1 (True)')
 
     args = parser.parse_args()
@@ -3633,15 +3701,10 @@ def main():
     args.prop_subgraph_filter_weight = 'length_pix'
     args.prop_min_subgraph_length = 10  # GSD = 0.3
 
-    # general settings
-    verbose = True
-    super_verbose = False
-
-    # Gather files
-    gt_list, gp_list, root_list, im_loc_list = gather_files(
-        args.test_method,
-        args.truth_dir,
-        args.prop_dir,
+    main(
+        test_method=args.test_method,
+        truth_dir=args.truth_dir,
+        prop_dir=args.prop_dir,
         im_dir=args.im_dir,
         im_prefix=args.im_prefix,
         gt_wkt_file=args.gt_wkt_file,
@@ -3651,23 +3714,13 @@ def main():
         gt_min_subgraph_length=args.gt_min_subgraph_length,
         prop_subgraph_filter_weight=args.prop_subgraph_filter_weight,
         prop_min_subgraph_length=args.prop_min_subgraph_length,
-        use_pix_coords=bool(args.use_pix_coords),
+        use_pix_coords=args.use_pix_coords,
+        weight=args.weight,
         speed_key=args.speed_key,
         travel_time_key=args.travel_time_key,
         wkt_weight_key=args.wkt_weight_key,
         default_speed=args.default_speed,
-        verbose=verbose,
-        super_verbose=super_verbose)
-
-    # Compute
-    execute(
-        args.output_name, gt_list, gp_list, root_list,
-        im_loc_list=im_loc_list,
-        test_method=args.test_method,
-        weight=args.weight,
-        speed_key=args.speed_key,
-        travel_time_key=args.travel_time_key,
-        max_files=args.max_files,
+        output_name=args.output_name,
         linestring_delta=args.linestring_delta,
         is_curved_eps=args.is_curved_eps,
         max_snap_dist=args.max_snap_dist,
@@ -3678,12 +3731,5 @@ def main():
         topo_subgraph_radius=args.topo_subgraph_radius,
         topo_interval=args.topo_interval,
         sp_length_buffer=args.sp_length_buffer,
-        use_pix_coords=bool(args.use_pix_coords),
-        allow_renaming=bool(args.allow_renaming),
-        verbose=verbose,
-        super_verbose=super_verbose)
-
-
-###############################################################################
-if __name__ == "__main__":
-    main()
+        allow_renaming=args.allow_renaming
+    )
