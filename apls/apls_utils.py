@@ -6,6 +6,7 @@ Created on Mon May  6 14:05:30 2019
 @author: avanetten
 """
 
+import osmnx_funcs
 import numpy as np
 from osgeo import gdal, ogr, osr
 import scipy.spatial
@@ -26,7 +27,6 @@ from math import sqrt, radians, cos, sin, asin
 # add apls path and import apls_tools
 path_apls_src = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(path_apls_src)
-import osmnx_funcs
 
 
 ###############################################################################
@@ -134,7 +134,7 @@ def nodes_near_point(x, y, kdtree, kd_idx_dic, x_coord='x', y_coord='y',
 
 ###############################################################################
 def _nodes_near_origin(G_, node, kdtree, kd_idx_dic,
-                      x_coord='x', y_coord='y', radius_m=150, verbose=False):
+                       x_coord='x', y_coord='y', radius_m=150, verbose=False):
     '''Get nodes a given radius from the desired node.  G_ should be the 
     maximally simplified graph'''
 
@@ -211,7 +211,7 @@ def G_to_kdtree(G_, x_coord='x', y_coord='y', verbose=False):
 
 ###############################################################################
 def _query_kd_nearest(kdtree, kd_idx_dic, point, n_neighbors=10,
-                      distance_upper_bound=1000, keep_point=True):
+                      distance_upper_bound=10000, keep_point=True):
     '''
     Query the kd-tree for neighbors
     Return nearest node names, distances, nearest node indexes
@@ -703,14 +703,12 @@ def gdf_to_array(gdf, im_file, output_raster, burnValue=150,
     if verbose:
         print("gdata.GetGeoTransform():", gdata.GetGeoTransform())
 
-    
-
     # set raster info
     raster_srs = osr.SpatialReference()
     raster_srs.ImportFromWkt(gdata.GetProjectionRef())
     target_ds.SetProjection(raster_srs.ExportToWkt())
     if verbose:
-        print ("target_ds:", target_ds)
+        print("target_ds:", target_ds)
 
     band = target_ds.GetRasterBand(1)
     band.SetNoDataValue(NoData_value)
@@ -727,7 +725,7 @@ def gdf_to_array(gdf, im_file, output_raster, burnValue=150,
     featureDefn = outLayer.GetLayerDefn()
     for j, geomShape in enumerate(gdf['geometry'].values):
         if verbose:
-            print (j, "geomshape:", geomShape)
+            print(j, "geomshape:", geomShape)
         outFeature = ogr.Feature(featureDefn)
         outFeature.SetGeometry(ogr.CreateGeometryFromWkt(geomShape.wkt))
         if len(mask_burn_val_key) > 0:
@@ -760,7 +758,6 @@ def geojson_to_arr(image_path, geojson_path, mask_path_out_gray,
                    dissolve_by='speed_mph', mask_burn_val_key='burnValue',
                    min_burn_val=0, max_burn_val=255,
                    verbose=False):
-
     """
     Create buffer around geojson for desired geojson feature, save as mask
 
@@ -847,7 +844,6 @@ def _create_speed_arr(image_path, geojson_path, mask_path_out_gray,
                       buffer_distance_meters=2, buffer_cap_style=1,
                       dissolve_by='speed_m/s', bin_conversion_key='speed_mph',
                       verbose=False):
-
     '''
     Similar to create_arr_from_geojson()
     Create buffer around geojson for speeds, use bin_conversion_func to
@@ -885,11 +881,10 @@ def _create_speed_arr(image_path, geojson_path, mask_path_out_gray,
 
 ###############################################################################
 def create_speed_gdf_v0(image_path, geojson_path, mask_path_out_gray,
-                     bin_conversion_func, mask_burn_val_key='burnValue',
-                     buffer_distance_meters=2, buffer_cap_style=1,
-                     dissolve_by='speed_m/s', bin_conversion_key='speed_mph',
-                     verbose=False):
-
+                        bin_conversion_func, mask_burn_val_key='burnValue',
+                        buffer_distance_meters=2, buffer_cap_style=1,
+                        dissolve_by='speed_m/s', bin_conversion_key='speed_mph',
+                        verbose=False):
     '''
     Create buffer around geojson for speeds, use bin_conversion_func to
     assign values to the mask
@@ -936,40 +931,40 @@ def create_speed_gdf_v0(image_path, geojson_path, mask_path_out_gray,
 
 
 ###############################################################################
-def convert_array_to_multichannel(in_arr, n_channels=7, burnValue=255, 
+def convert_array_to_multichannel(in_arr, n_channels=7, burnValue=255,
                                   append_total_band=False, verbose=False):
     '''Take input array with multiple values, and make each value a unique
     channel.  Assume a zero value is background, while value of 1 is the 
     first channel, 2 the second channel, etc.'''
-    
-    h,w = in_arr.shape[:2]
+
+    h, w = in_arr.shape[:2]
     # scikit image wants it in this format by default
-    out_arr = np.zeros((n_channels, h,w), dtype=np.uint8)
+    out_arr = np.zeros((n_channels, h, w), dtype=np.uint8)
     #out_arr = np.zeros((h,w,n_channels), dtype=np.uint8)
-    
+
     for band in range(n_channels):
         val = band + 1
         band_out = np.zeros((h, w), dtype=np.uint8)
         if verbose:
-            print ("band:", band)
+            print("band:", band)
         band_arr_bool = np.where(in_arr == val)
         band_out[band_arr_bool] = burnValue
-        out_arr[band,:,:] = band_out
+        out_arr[band, :, :] = band_out
         #out_arr[:,:,band] = band_out
- 
+
     if append_total_band:
-        tot_band = np.zeros((h,w), dtype=np.uint8)
+        tot_band = np.zeros((h, w), dtype=np.uint8)
         band_arr_bool = np.where(in_arr > 0)
         tot_band[band_arr_bool] = burnValue
-        tot_band = tot_band.reshape(1,h,w)
+        tot_band = tot_band.reshape(1, h, w)
         out_arr = np.concatenate((out_arr, tot_band), axis=0).astype(np.uint8)
-    
+
     if verbose:
-        print ("out_arr.shape:", out_arr.shape)
+        print("out_arr.shape:", out_arr.shape)
     return out_arr
 
 
-### Helper Functions
+# Helper Functions
 ###############################################################################
 def CreateMultiBandGeoTiff(OutPath, Array):
     '''
@@ -1008,13 +1003,13 @@ def geomGeo2geomPixel(geom, affineObject=[], input_raster='',
     affineObjectInv = ~affineObject
 
     geomTransform = shapely.affinity.affine_transform(geom,
-                                      [affineObjectInv.a,
-                                       affineObjectInv.b,
-                                       affineObjectInv.d,
-                                       affineObjectInv.e,
-                                       affineObjectInv.xoff,
-                                       affineObjectInv.yoff]
-                                      )
+                                                      [affineObjectInv.a,
+                                                       affineObjectInv.b,
+                                                       affineObjectInv.d,
+                                                       affineObjectInv.e,
+                                                       affineObjectInv.xoff,
+                                                       affineObjectInv.yoff]
+                                                      )
 
     return geomTransform
 
@@ -1048,9 +1043,9 @@ def geomPixel2geomGeo(geom, affineObject=[], input_raster='', gdal_geomTransform
 
 
 ###############################################################################
-## Haversine formula example in Python
-## Author: Wayne Dyck
-#def distance_haversine(lat1, lon1, lat2, lon2, earth_radius_km=6371):
+# Haversine formula example in Python
+# Author: Wayne Dyck
+# def distance_haversine(lat1, lon1, lat2, lon2, earth_radius_km=6371):
 #    #lat1, lon1 = origin
 #    #lat2, lon2 = destination
 #
@@ -1062,7 +1057,6 @@ def geomPixel2geomGeo(geom, affineObject=[], input_raster='', gdal_geomTransform
 #    d = earth_radius_km * c
 #
 #    return d
-
 
 
 ###############################################################################
@@ -1085,6 +1079,8 @@ def _haversine(lon1, lat1, lon2, lat2):
     return m
 
 ###############################################################################
+
+
 def get_gsd(im_test_file):
     '''return gsd in meters'''
     srcImage = gdal.Open(im_test_file)
@@ -1098,7 +1094,8 @@ def get_gsd(im_test_file):
 
     # get haversine distance
     # dx = _haversine(ulX, ulY, ulX+xDist, ulY) #haversine(lon1, lat1, lon2, lat2)
-    dy = _haversine(ulX, ulY, ulX, ulY+yDist)   #haversine(lon1, lat1, lon2, lat2)
+    # haversine(lon1, lat1, lon2, lat2)
+    dy = _haversine(ulX, ulY, ulX, ulY+yDist)
 
     return dy  # dx
 

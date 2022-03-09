@@ -44,6 +44,9 @@ import shapely.wkt
 # import pickle
 # import shutil
 
+from pathlib import Path
+import magic
+
 path_apls_src = os.path.dirname(os.path.realpath(__file__))
 path_apls = os.path.dirname(path_apls_src)
 # print("path_apls:", path_apls)
@@ -96,9 +99,9 @@ def add_travel_time(G_, speed_key='inferred_speed_mps', length_key='length',
         else:
             print("speed_key not found:", speed_key)
             return G_
-#            data['inferred_speed'] = default_speed
-#            data[speed_key] = default_speed
-#            speed = default_speed
+    #            data['inferred_speed'] = default_speed
+    #            data[speed_key] = default_speed
+    #            speed = default_speed
         if verbose:
             print("data[length_key]:", data[length_key])
             print("speed:", speed)
@@ -312,9 +315,16 @@ def get_closest_edge_from_G(G_, point, nearby_nodes_set=set([]),
     edge_list = []
     geom_list = []
     p = point  # Point(point_coords)
+
+    _key = None
+    _data = None
+
     for i, (u, v, key, data) in enumerate(G_.edges(keys=True, data=True)):
         # print((" in get_closest_edge(): u,v,key,data:", u,v,key,data))
         # print ("  in get_closest_edge(): data:", data)
+
+        _key = key
+        _data = data
 
         # skip if u,v not in nearby nodes
         if len(nearby_nodes_set) > 0:
@@ -331,10 +341,22 @@ def get_closest_edge_from_G(G_, point, nearby_nodes_set=set([]),
         dist_list.append(p.distance(line))
         edge_list.append([u, v, key])
     # get closest edge
-    min_idx = np.argmin(dist_list)
-    min_dist = dist_list[min_idx]
-    best_edge = edge_list[min_idx]
-    best_geom = geom_list[min_idx]
+    try:
+        min_idx = np.argmin(np.array(dist_list))
+        min_dist = dist_list[min_idx]
+        best_edge = edge_list[min_idx]
+        best_geom = geom_list[min_idx]
+    except Exception as e:
+        print(e)
+        print(G_)
+        print(point)
+        print(nearby_nodes_set)
+        print(_key)
+        print(_data)
+        print(_data["geometry"])
+        print(point.distance(_data["geometry"]))
+        print(dist_list)
+        print(edge_list)
 
     return best_edge, min_dist, best_geom
 
@@ -638,9 +660,10 @@ def insert_point_into_G(G_, point, node_id=100000, max_distance_meters=5,
 ###############################################################################
 def insert_control_points(G_, control_points, max_distance_meters=10,
                           allow_renaming=True,
-                          n_nodes_for_kd=1000, n_neighbors=20,
+                          n_nodes_for_kd=1500, n_neighbors=20,
                           x_coord='x', y_coord='y',
                           verbose=True, super_verbose=False):
+    # !!! Change n_nodes_for_kd to get it to run for larger graphs???
     """
     Wrapper around insert_point_into_G() for all control_points.
 
@@ -689,9 +712,11 @@ def insert_control_points(G_, control_points, max_distance_meters=10,
     t0 = time.time()
 
     # insertion can be super slow so construct kdtree if a large graph
-    if len(G_.nodes()) > n_nodes_for_kd:
-        # construct kdtree of ground truth
-        kd_idx_dic, kdtree, pos_arr = apls_utils.G_to_kdtree(G_)
+    # Note!: Disabled for now as was running into issues with large graphs (>3000 paths)
+    #       Otherwise, must set `n_nodes_for_kd` to higher than number of nodes
+    # if len(G_.nodes()) > n_nodes_for_kd:
+    # construct kdtree of ground truth
+    # kd_idx_dic, kdtree, pos_arr = apls_utils.G_to_kdtree(G_)
     # print("kd_idx_dic:", kd_idx_dic)
     # print("kdtree:", kdtree)
     # print("pos_arr:", pos_arr)
@@ -714,16 +739,17 @@ def insert_control_points(G_, control_points, max_distance_meters=10,
         point = Point(x, y)
 
         # if large graph, determine nearby nodes
-        if len(G_.nodes()) > n_nodes_for_kd:
-            # get closest nodes
-            node_names, dists_m_refine = apls_utils.nodes_near_point(
-                x, y, kdtree, kd_idx_dic, x_coord=x_coord, y_coord=y_coord,
-                # radius_m=radius_m,
-                n_neighbors=n_neighbors,
-                verbose=False)
-            nearby_nodes_set = set(node_names)
-        else:
-            nearby_nodes_set = set([])
+        # if len(G_.nodes()) > n_nodes_for_kd:
+        #     # get closest nodes
+        #     node_names, dists_m_refine = apls_utils.nodes_near_point(
+        #         x, y, kdtree, kd_idx_dic, x_coord=x_coord, y_coord=y_coord,
+        #         # radius_m=radius_m,
+        #         n_neighbors=n_neighbors,
+        #         verbose=False)
+        #     nearby_nodes_set = set(node_names)
+        # else:
+        #     nearby_nodes_set = set([])
+        nearby_nodes_set = set([])
 
         # insert point
         Gout, node_props, xnew, ynew = insert_point_into_G(
@@ -2159,9 +2185,9 @@ def compute_apls_metric(all_pairs_lengths_gt_native,
             print("  min(diffs)", np.min(diffs))
     if len(res_dir) > 0:
         scatter_png = os.path.join(
-            res_dir, 'all_pairs_paths_diffs_gt_to_prop.png')
+            res_dir, 'all_pairs_paths_diffs_gt_to_prop.svg')
         hist_png = os.path.join(
-            res_dir, 'all_pairs_paths_diffs_hist_gt_to_prop.png')
+            res_dir, 'all_pairs_paths_diffs_hist_gt_to_prop.svg')
         # can't plot route names if there are too many...
         if len(routes) > 100:
             routes_str = []
@@ -2198,9 +2224,9 @@ def compute_apls_metric(all_pairs_lengths_gt_native,
             print("  min(diffs)", np.min(diffs))
     if len(res_dir) > 0:
         scatter_png = os.path.join(
-            res_dir, 'all_pairs_paths_diffs_prop_to_gt.png')
+            res_dir, 'all_pairs_paths_diffs_prop_to_gt.svg')
         hist_png = os.path.join(
-            res_dir, 'all_pairs_paths_diffs_hist_prop_to_gt.png')
+            res_dir, 'all_pairs_paths_diffs_hist_prop_to_gt.svg')
         if len(routes) > 100:
             routes_str = []
         else:
@@ -2505,6 +2531,8 @@ def gather_files(test_method, truth_dir, prop_dir,
     # ingest multiple ground truth and propoal geojsons in a folder
     if test_method == 'gt_json_prop_json':
 
+        # TODO:  Enable for two files instead
+
         name_list = os.listdir(truth_dir)
         for f in name_list:
             # skip non-geojson files
@@ -2525,7 +2553,8 @@ def gather_files(test_method, truth_dir, prop_dir,
             # ground truth
             osmidx, osmNodeidx = 0, 0
             G_gt_init, G_gt_raw = \
-                _create_gt_graph(gt_file, im_file, network_type='all_private',
+                _create_gt_graph(gt_file, im_file,
+                                 network_type='all_private',
                                  valid_road_types=valid_road_types,
                                  use_pix_coords=use_pix_coords,
                                  osmidx=osmidx,
@@ -2539,7 +2568,12 @@ def gather_files(test_method, truth_dir, prop_dir,
                 continue
 
             # proposal
-            osmidx, osmNodeidx = 500, 500
+            # osmidx, osmNodeidx = 500, 500
+            # Keep these such that there is no overlap with GT node ids
+            # osmidx, osmNodeidx = 20000, 20000  # TODO: Need to update this such that the IDs NEVER overlap with the GT graph ids
+            osmidx, osmNodeidx = 0, 0
+
+            print(prop_file)
             G_p_init, G_p_raw = \
                 _create_gt_graph(prop_file, im_file,
                                  network_type='all_private',
@@ -2577,6 +2611,7 @@ def gather_files(test_method, truth_dir, prop_dir,
 
             im_file = os.path.join(im_dir,
                                    f.split('.')[0].replace('geojson_roads_speed', 'PS-RGB') + '.tif')
+            # im_file = ""
 
             # im_file = os.path.join(im_dir, im_prefix + outroot + '.tif')
 
@@ -2587,7 +2622,7 @@ def gather_files(test_method, truth_dir, prop_dir,
 
             #########
             # ground truth
-            osmidx, osmNodeidx = 0, 0
+            osmidx, osmNodeidx = 500, 500
             G_gt_init, G_gt_raw = \
                 _create_gt_graph(gt_file, im_file, network_type='all_private',
                                  # linestring_delta=args.linestring_delta,
@@ -3001,36 +3036,52 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
 
         # get graphs with midpoints and geometry (if small graph)
         print("\nMake gt, prop graphs...")
-        if len(G_gt_init.nodes()) < 500:  # 2000:
-            G_gt_cp, G_p_cp, G_gt_cp_prime, G_p_cp_prime, \
-                control_points_gt, control_points_prop, \
-                all_pairs_lengths_gt_native, all_pairs_lengths_prop_native, \
-                all_pairs_lengths_gt_prime, all_pairs_lengths_prop_prime  \
-                = make_graphs(G_gt_init, G_p_init,
-                              weight=weight,
-                              speed_key=speed_key,
-                              travel_time_key=travel_time_key,
-                              linestring_delta=linestring_delta,
-                              is_curved_eps=is_curved_eps,
-                              max_snap_dist=max_snap_dist,
-                              allow_renaming=allow_renaming,
-                              verbose=verbose)
 
-        # get large graphs and paths
-        else:
-            G_gt_cp, G_p_cp, G_gt_cp_prime, G_p_cp_prime, \
-                control_points_gt, control_points_prop, \
-                all_pairs_lengths_gt_native, all_pairs_lengths_prop_native, \
-                all_pairs_lengths_gt_prime, all_pairs_lengths_prop_prime  \
-                = make_graphs_yuge(G_gt_init, G_p_init,
-                                   weight=weight,
-                                   speed_key=speed_key,
-                                   travel_time_key=travel_time_key,
-                                   max_nodes=max_nodes,
-                                   max_snap_dist=max_snap_dist,
-                                   allow_renaming=allow_renaming,
-                                   verbose=verbose,
-                                   super_verbose=super_verbose)
+        # fixes issues with drop-off after certain number of nodes; at cost of runtime
+        G_gt_cp, G_p_cp, G_gt_cp_prime, G_p_cp_prime, \
+            control_points_gt, control_points_prop, \
+            all_pairs_lengths_gt_native, all_pairs_lengths_prop_native, \
+            all_pairs_lengths_gt_prime, all_pairs_lengths_prop_prime  \
+            = make_graphs(G_gt_init, G_p_init,
+                          weight=weight,
+                          speed_key=speed_key,
+                          travel_time_key=travel_time_key,
+                          linestring_delta=linestring_delta,
+                          is_curved_eps=is_curved_eps,
+                          max_snap_dist=max_snap_dist,
+                          allow_renaming=allow_renaming,
+                          verbose=verbose)
+        # if len(G_gt_init.nodes()) < 500:  # 2000:
+        # if len(G_gt_init.nodes()) < 1000000:
+        #     G_gt_cp, G_p_cp, G_gt_cp_prime, G_p_cp_prime, \
+        #         control_points_gt, control_points_prop, \
+        #         all_pairs_lengths_gt_native, all_pairs_lengths_prop_native, \
+        #         all_pairs_lengths_gt_prime, all_pairs_lengths_prop_prime  \
+        #         = make_graphs(G_gt_init, G_p_init,
+        #                       weight=weight,
+        #                       speed_key=speed_key,
+        #                       travel_time_key=travel_time_key,
+        #                       linestring_delta=linestring_delta,
+        #                       is_curved_eps=is_curved_eps,
+        #                       max_snap_dist=max_snap_dist,
+        #                       allow_renaming=allow_renaming,
+        #                       verbose=verbose)
+
+        # # get large graphs and paths
+        # else:
+        #     G_gt_cp, G_p_cp, G_gt_cp_prime, G_p_cp_prime, \
+        #         control_points_gt, control_points_prop, \
+        #         all_pairs_lengths_gt_native, all_pairs_lengths_prop_native, \
+        #         all_pairs_lengths_gt_prime, all_pairs_lengths_prop_prime  \
+        #         = make_graphs_yuge(G_gt_init, G_p_init,
+        #                            weight=weight,
+        #                            speed_key=speed_key,
+        #                            travel_time_key=travel_time_key,
+        #                            max_nodes=max_nodes,
+        #                            max_snap_dist=max_snap_dist,
+        #                            allow_renaming=allow_renaming,
+        #                            verbose=verbose,
+        #                            super_verbose=super_verbose)
 
         if verbose:
             print("\nlen control_points_gt:", len(control_points_gt))
@@ -3205,7 +3256,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                     G_gt_init, ax, fontsize=4)  # node ids
             ax.set_title('Ground Truth Graph', fontsize=title_fontsize)
             # plt.show()
-            plt.savefig(os.path.join(outdir, 'gt_graph.png'), dpi=dpi)
+            plt.savefig(os.path.join(outdir, 'gt_graph.svg'), dpi=dpi)
             # plt.clf()
             # plt.cla()
             plt.close('all')
@@ -3221,7 +3272,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                           fontsize=title_fontsize)
             # plt.show()
             plt.savefig(os.path.join(
-                outdir, 'gt_graph_midpoints.png'), dpi=dpi)
+                outdir, 'gt_graph_midpoints.svg'), dpi=dpi)
             plt.close('all')
 
             # plot ground truth nodes from prop
@@ -3236,7 +3287,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                 fontsize=title_fontsize)
             # plt.show()
             plt.savefig(os.path.join(
-                outdir, 'gt_graph_prop_control_points.png'), dpi=dpi)
+                outdir, 'gt_graph_prop_control_points.svg'), dpi=dpi)
             # plt.clf()
             # plt.cla()
             plt.close('all')
@@ -3254,7 +3305,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             ax.set_title(
                 'Ground Truth Graph (cp) without any geometry', size='x-small')
             # plt.tight_layout()
-            plt.savefig(os.path.join(outdir, 'gt_without_geom.png'), dpi=dpi)
+            plt.savefig(os.path.join(outdir, 'gt_without_geom.svg'), dpi=dpi)
             plt.close('all')
 
             # plot proposal
@@ -3266,7 +3317,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                     G_p_init, ax, fontsize=4)  # node ids
             ax.set_title('Proposal Graph', fontsize=title_fontsize)
             # plt.show()
-            plt.savefig(os.path.join(outdir, 'prop_graph.png'), dpi=dpi)
+            plt.savefig(os.path.join(outdir, 'prop_graph.svg'), dpi=dpi)
             plt.close('all')
 
             #  proposal midpoints
@@ -3279,7 +3330,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             ax0.set_title('Proposal With Midpionts', fontsize=title_fontsize)
             # plt.show()
             plt.savefig(os.path.join(
-                outdir, 'prop_graph_midpoints.png'), dpi=dpi)
+                outdir, 'prop_graph_midpoints.svg'), dpi=dpi)
             plt.close('all')
 
             #  proposal midpoints
@@ -3293,7 +3344,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                           fontsize=title_fontsize)
             # plt.show()
             plt.savefig(os.path.join(
-                outdir, 'prop_graph_midpoints_gt_control_points.png'), dpi=dpi)
+                outdir, 'prop_graph_midpoints_gt_control_points.svg'), dpi=dpi)
             plt.close('all')
 
             # plot ground truth buffer and proposal graph
@@ -3318,7 +3369,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                           fontsize=title_fontsize)
             # plt.show()
             plt.savefig(os.path.join(
-                outdir, 'prop_graph_plus_gt_buff.png'), dpi=dpi)
+                outdir, 'prop_graph_plus_gt_buff.svg'), dpi=dpi)
             # plt.clf()
             # plt.cla()
             plt.close('all')
@@ -3339,7 +3390,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                           fontsize=title_fontsize)
             # plt.show()
             plt.savefig(os.path.join(
-                outdir, 'gt_graph_plus_prop_buff.png'), dpi=dpi)
+                outdir, 'gt_graph_plus_prop_buff.svg'), dpi=dpi)
             # plt.clf()
             # plt.cla()
             plt.close('all')
@@ -3359,7 +3410,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                 'Proposal Graph (cp) without any geometry', size='x-small')
             # plt.tight_layout()
             plt.savefig(os.path.join(
-                outdir, 'prop_cp_without_geom.png'), dpi=dpi)
+                outdir, 'prop_cp_without_geom.svg'), dpi=dpi)
             plt.close('all')
 
             # remove geometry to test whether we correctly added midpoints and edges
@@ -3375,7 +3426,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                 fig_height=fig_height, fig_width=fig_width)
             ax.set_title('Proposal Graph without any geometry', size='x-small')
             # plt.tight_layout()
-            plt.savefig(os.path.join(outdir, 'prop_without_geom.png'), dpi=dpi)
+            plt.savefig(os.path.join(outdir, 'prop_without_geom.svg'), dpi=dpi)
             plt.close('all')
 
             ###################################
@@ -3446,7 +3497,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             ax.set_title(title, fontsize=title_fontsize)
             # plt.show()
             plt.savefig(os.path.join(
-                outdir, 'single_source_route_ground_truth.png'), dpi=dpi)
+                outdir, 'single_source_route_ground_truth.svg'), dpi=dpi)
             plt.close('all')
 
             # get all paths from source for proposal graph
@@ -3495,7 +3546,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
             ax.set_title(title, fontsize=title_fontsize)
             # plt.show()
             plt.savefig(os.path.join(
-                outdir, 'single_source_route_prop.png'), dpi=dpi)
+                outdir, 'single_source_route_prop.svg'), dpi=dpi)
             plt.close('all')
 
             # overlay plot on image
@@ -3511,7 +3562,7 @@ def execute(output_name, gt_list, gp_list, root_list, im_loc_list=[],
                     # width_key, width_mult = 'speed_mph', 0.3
                     gt_color, prop_color = 'cyan', 'lime'
                     image_name = outroot
-                    figname = os.path.join(outdir, 'overlaid.png')
+                    figname = os.path.join(outdir, 'overlaid.svg')
                     _ = apls_plots._plot_gt_prop_graphs(
                         G_gt_init, G_p_init, image_path,
                         figsize=(16, 8), show_endnodes=True,
@@ -3641,7 +3692,7 @@ if __name__ == "__main__":
                         )
     parser.add_argument('--truth_dir', type=str, required=True,
                         help='Location of ground truth graphs')
-    parser.add_argument('--prop_dir', type=str, required=True,
+    parser.add_argument('--prop_dir', type=str, required=False,  # False because errors with WKT
                         help='Location of proposal graphs')
     parser.add_argument('--im_dir', default='', type=str,
                         help='Location of images (optional)')
@@ -3676,7 +3727,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_files', default=100, type=int,
                         help='Maximum number of graphs to analyze')
     parser.add_argument('--weight', default='length', type=str,
-                        help='Weight for APLS metric [length, travel_time_s')
+                        help='Weight for APLS metric [length, travel_time_s]')
     parser.add_argument('--speed_key', default='inferred_speed_mps', type=str,
                         help='Key in edge properties for speed')
     parser.add_argument('--travel_time_key', default='travel_time_s', type=str,
@@ -3700,6 +3751,7 @@ if __name__ == "__main__":
     args.gt_min_subgraph_length = 5
     args.prop_subgraph_filter_weight = 'length_pix'
     args.prop_min_subgraph_length = 10  # GSD = 0.3
+    # args.prop_min_subgraph_length = 5  # GSD = 0.3; my edit
 
     main(
         test_method=args.test_method,
